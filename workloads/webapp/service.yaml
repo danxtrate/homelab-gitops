@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-webapp-svc
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: fastapi-webapp
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080

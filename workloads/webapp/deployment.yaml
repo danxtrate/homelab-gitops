@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-webapp
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi-webapp
+  template:
+    metadata:
+      labels:
+        app: fastapi-webapp
+    spec:
+      containers:
+      - name: webapp
+        image: ghcr.io/danxtrate/webapp:latest
+        ports:
+        - containerPort: 8000
