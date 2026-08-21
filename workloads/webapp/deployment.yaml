@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: ghcr.io/danxtrate/webapp:latest
+        image: ghcr.io/danxtrate/homelab-webapp/webapp:latest
         ports:
         - containerPort: 8000
