@@ -7,8 +7,73 @@ data:
   settings.yaml: |
     title: "Dan's Homelab"
     theme: dark
-  services.yaml: "[]"
-  widgets.yaml: "[]"
+    color: slate
+    hideErrors: true
+    layout:
+      Infrastructure:
+        style: row
+        columns: 4
+      "Management & GitOps":
+        style: row
+        columns: 3
+      "Media & Services":
+        style: row
+        columns: 4
+
+  services.yaml: |
+    - Infrastructure:
+        - Proxmox:
+            icon: proxmox.png
+            href: https://192.168.100.180:8006
+            description: "ThinkCentre M710q"
+        - OPNsense:
+            icon: opnsense.png
+            href: https://192.168.100.1
+            description: "Firewall & Gateway"
+        - QNAP NAS:
+            icon: qnap.png
+            href: http://192.168.100.200:8080
+            description: "TS-228A Storage"
+        - UpSnap:
+            icon: upsnap.png
+            href: http://192.168.100.25:30090
+            description: "Wake-on-LAN"
+
+    - "Management & GitOps":
+        - ArgoCD Hub:
+            icon: argocd.png
+            href: http://192.168.100.25:8080
+            description: "RPi 5 Control Plane"
+        - GitHub Homelab:
+            icon: github.png
+            href: https://github.com/danxtrate
+            description: "GitOps blueprints"
+
+    - "Media & Services":
+        - Jellyfin:
+            icon: jellyfin.png
+            href: http://192.168.100.160:8096
+            description: "Media Server"
+        - Immich:
+            icon: immich.png
+            href: http://192.168.100.160:2283
+            description: "Photo Library"
+        - Home Assistant:
+            icon: home-assistant.png
+            href: http://192.168.100.160:8123
+            description: "Smart Home & NVR"
+
+  widgets.yaml: |
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        text_size: 2xl
+        format:
+          dateStyle: medium
+          timeStyle: short
+        hour12: false
+
   bookmarks.yaml: "[]"
   custom.css: ""
   custom.js: ""
