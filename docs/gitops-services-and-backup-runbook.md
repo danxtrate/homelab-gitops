@@ -14,7 +14,8 @@ Today, we successfully expanded the self-hosted services ecosystem on the **Rasp
 1. **Homepage**: Central homelab web dashboard with live service tiles, search, and datetime widgets.
 2. **UpSnap**: Out-of-band Wake-on-LAN (WoL) and remote shutdown controller for Proxmox VE hypervisors with cryptographic command restrictions.
 3. **Vaultwarden**: Zero-knowledge password and secrets manager with native HTTPS WebCrypto support.
-4. **Automated 3-2-1 Cloud Backup Engine**: An automated nightly Kubernetes CronJob performing safe SQLite online snapshots and offloading encrypted archives to an **Oracle Cloud Infrastructure (OCI) S3 bucket**.
+4. **Vaultwarden 3-2-1 Cloud Backup Engine**: Automated nightly SQLite snapshot offloaded to Oracle Cloud Infrastructure (OCI) S3.
+5. **ArgoCD Control Plane Cloud Backup Engine**: Automated daily export (`argocd-util export`) of all cluster secrets, RBAC, projects, and apps offloaded to OCI S3.
 
 ```mermaid
 flowchart TD
@@ -150,6 +151,11 @@ ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/vaultwarden-s3
 ### Trigger On-Demand ArgoCD S3 Backup
 ```bash
 ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/argocd-s3-backup manual-argo-backup-\$(date +%s) -n argocd && sudo k3s kubectl logs -n argocd -l job-name -f"
+```
+
+### Copy OCI S3 Secret from Vaultwarden to ArgoCD Namespace
+```bash
+ssh pi@192.168.100.25 "sudo k3s kubectl create secret generic oci-s3-backup-secret -n argocd --from-literal=AWS_ACCESS_KEY_ID=\"\$(sudo k3s kubectl get secret oci-s3-backup-secret -n vaultwarden -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)\" --from-literal=AWS_SECRET_ACCESS_KEY=\"\$(sudo k3s kubectl get secret oci-s3-backup-secret -n vaultwarden -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)\" --dry-run=client -o yaml | sudo k3s kubectl apply -f -"
 ```
 
 ### Run UpSnap Proxmox Key Setup on a Specific Host
