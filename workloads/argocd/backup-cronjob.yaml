@@ -1,0 +1,111 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: argocd-s3-backup
+  namespace: argocd
+spec:
+  schedule: "0 4 * * *" # Runs daily at 04:00 AM UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: argocd-server
+          restartPolicy: OnFailure
+          containers:
+            - name: s3-backup
+              image: alpine:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: oci-s3-backup-secret
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: oci-s3-backup-secret
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: OCI_S3_HOST
+                  value: "fru9knjd2bji.compat.objectstorage.eu-frankfurt-1.oraclecloud.com"
+                - name: OCI_S3_BUCKET
+                  value: "homelab"
+                - name: OCI_S3_REGION
+                  value: "eu-frankfurt-1"
+              command:
+                - "/bin/sh"
+                - "-c"
+                - |
+                  set -e
+                  echo "Installing tools (curl, python3, kubectl, argocd-util)..."
+                  apk add --no-cache curl python3 gzip tar >/dev/null
+
+                  # Download native ARM64 argocd-util
+                  curl -sSL -o /usr/local/bin/argocd-util https://github.com/argoproj/argo-cd/releases/download/v2.10.9/argocd-util-linux-arm64
+                  chmod +x /usr/local/bin/argocd-util
+
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  ARCHIVE_FILE="/tmp/argocd_backup_${TIMESTAMP}.yaml.gz"
+
+                  echo "Exporting ArgoCD control plane state..."
+                  /usr/local/bin/argocd-util export -n argocd | gzip > "$ARCHIVE_FILE"
+
+                  echo "Uploading to Oracle Cloud S3 (s3://homelab/backups/argocd/)..."
+                  python3 - << 'EOF'
+                  import os, sys, datetime, hashlib, hmac, urllib.request, glob
+
+                  key = os.environ['AWS_ACCESS_KEY_ID']
+                  sec = os.environ['AWS_SECRET_ACCESS_KEY']
+                  host = os.environ.get('OCI_S3_HOST', 'fru9knjd2bji.compat.objectstorage.eu-frankfurt-1.oraclecloud.com')
+                  bucket = os.environ.get('OCI_S3_BUCKET', 'homelab')
+                  region = os.environ.get('OCI_S3_REGION', 'eu-frankfurt-1')
+
+                  tar_files = glob.glob('/tmp/argocd_backup_*.yaml.gz')
+                  if not tar_files:
+                      print("Error: No backup archive found")
+                      sys.exit(1)
+                  fn = tar_files[0]
+                  filename = os.path.basename(fn)
+
+                  with open(fn, 'rb') as f:
+                      data = f.read()
+
+                  payload_hash = hashlib.sha256(data).hexdigest()
+                  t = datetime.datetime.now(datetime.timezone.utc)
+                  amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                  date_stamp = t.strftime('%Y%m%d')
+
+                  uri = f'/{bucket}/backups/argocd/{filename}'
+                  canonical_headers = f'host:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n'
+                  signed_headers = 'host;x-amz-content-sha256;x-amz-date'
+                  canonical_request = f'PUT\n{uri}\n\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                  algorithm = 'AWS4-HMAC-SHA256'
+                  credential_scope = f'{date_stamp}/{region}/s3/aws4_request'
+                  string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                  def sign(k, m):
+                      return hmac.new(k, m.encode('utf-8'), hashlib.sha256).digest()
+
+                  k_date = sign(('AWS4' + sec).encode('utf-8'), date_stamp)
+                  k_region = sign(k_date, region)
+                  k_service = sign(k_region, 's3')
+                  signing_key = sign(k_service, 'aws4_request')
+                  sig = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                  headers = {
+                      'x-amz-date': amz_date,
+                      'x-amz-content-sha256': payload_hash,
+                      'Authorization': f'{algorithm} Credential={key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={sig}'
+                  }
+
+                  req = urllib.request.Request(f'https://{host}{uri}', data=data, headers=headers, method='PUT')
+                  with urllib.request.urlopen(req) as resp:
+                      print(f"✓ Upload complete: {filename} -> s3://{bucket}/backups/argocd/ (HTTP {resp.status})")
+                  EOF
+
+                  rm -f "$ARCHIVE_FILE"
+                  echo "ArgoCD backup finished successfully!"

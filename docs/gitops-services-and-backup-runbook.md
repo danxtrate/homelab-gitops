@@ -113,16 +113,43 @@ flowchart TD
 
 ---
 
+### E. Automated ArgoCD Control Plane Backup Engine
+* **Manifest Path:** [`workloads/argocd/backup-cronjob.yaml`](../workloads/argocd/backup-cronjob.yaml)
+* **Schedule:** Daily at 04:00 AM UTC (`0 4 * * *`)
+* **Destination:** `s3://homelab/backups/argocd/` (OCI Object Storage in `eu-frankfurt-1`)
+
+#### Workflow:
+1. Runs with `serviceAccountName: argocd-server` to export all ArgoCD custom resource definitions, secrets, repositories, clusters, and configmaps using `argocd-util export -n argocd`.
+2. Packages the stream into a compressed archive `argocd_backup_YYYYMMDD_HHMMSS.yaml.gz`.
+3. Transmits the payload to Oracle Cloud Infrastructure S3 using AWS SigV4 Python script.
+
+#### Disaster Recovery / Restore Process:
+If the Raspberry Pi 5 hardware or storage ever fails:
+```bash
+# 1. Fresh K3s + ArgoCD install on new drive
+curl -sfL https://get.k3s.io | sh - && sudo k3s kubectl create namespace argocd && sudo k3s kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 2. Restore latest backup from OCI S3
+gunzip -c argocd_backup_latest.yaml.gz | sudo k3s kubectl exec -i -n argocd deploy/argocd-server -- argocd-util import -n argocd -
+```
+
+---
+
 ## 3. Quick Reference One-Liners
 
 ### Check Pod & Service Status
 ```bash
-ssh pi@192.168.100.25 "sudo k3s kubectl get pods,svc,ingress,cronjob -A | grep -E 'homepage|upsnap|vaultwarden'"
+ssh pi@192.168.100.25 "sudo k3s kubectl get pods,svc,ingress,cronjob -A | grep -E 'homepage|upsnap|vaultwarden|argocd'"
 ```
 
-### Trigger On-Demand OCI S3 Backup Test
+### Trigger On-Demand Vaultwarden S3 Backup
 ```bash
-ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/vaultwarden-s3-backup manual-backup-\$(date +%s) -n vaultwarden && sudo k3s kubectl logs -n vaultwarden -l job-name -f"
+ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/vaultwarden-s3-backup manual-vault-backup-\$(date +%s) -n vaultwarden && sudo k3s kubectl logs -n vaultwarden -l job-name -f"
+```
+
+### Trigger On-Demand ArgoCD S3 Backup
+```bash
+ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/argocd-s3-backup manual-argo-backup-\$(date +%s) -n argocd && sudo k3s kubectl logs -n argocd -l job-name -f"
 ```
 
 ### Run UpSnap Proxmox Key Setup on a Specific Host
@@ -137,12 +164,16 @@ ssh pi@192.168.100.25 "sudo k3s kubectl create job --from=cronjob/vaultwarden-s3
 ```text
 homelab-gitops/
 ├── apps/
+│   ├── argocd-backup.yaml
 │   ├── homepage.yaml
 │   ├── upsnap.yaml
 │   └── vaultwarden.yaml
 ├── docs/
 │   └── gitops-services-and-backup-runbook.md
 └── workloads/
+    ├── argocd/
+    │   ├── backup-cronjob.yaml
+    │   └── kustomization.yaml
     ├── homepage/
     │   ├── configmap.yaml
     │   ├── deployment.yaml
