@@ -17,14 +17,49 @@ Today, we successfully expanded the self-hosted services ecosystem on the **Rasp
 4. **Vaultwarden 3-2-1 Cloud Backup Engine**: Automated nightly SQLite snapshot offloaded to Oracle Cloud Infrastructure (OCI) S3.
 5. **ArgoCD Control Plane Cloud Backup Engine**: Automated daily export (`argocd-util export`) of all cluster secrets, RBAC, projects, and apps offloaded to OCI S3.
 
+```text
++-----------------------------------------------------------------------------------+
+|                     RASPBERRY PI 5 CONTROL PLANE (192.168.100.25)                 |
+|                                                                                   |
+|  +-------------------------+      GitOps Sync       +--------------------------+  |
+|  |   ArgoCD Control Plane  | ---------------------> |   Homepage Dashboard     |  |
+|  |         (:8080)         |                        |         (:30030)         |  |
+|  +-------------------------+                        +--------------------------+  |
+|               |                                                  |                |
+|               | GitOps Sync                                      | GitOps Sync    |
+|               v                                                  v                |
+|  +-------------------------+                        +--------------------------+  |
+|  |     UpSnap WoL & Power  |                        |       Vaultwarden        |  |
+|  |     (:30090 / :8090)    |                        |      (HTTPS / :443)      |  |
+|  +-------------------------+                        +--------------------------+  |
+|               |                                                  |                |
+|               | UDP 9 Magic Packet (Wake)                        | Safe Snapshot  |
+|               | SSH /sbin/poweroff (Shutdown)                    v                |
+|               |                                     +--------------------------+  |
+|               |                                     |    Backup CronJobs       |  |
+|               |                                     | (Vaultwarden & ArgoCD)   |  |
+|               |                                     +--------------------------+  |
++---------------|--------------------------------------------------|----------------+
+                |                                                  |
+                |                                                  | SigV4 S3 Upload
+                v                                                  v
++----------------------------------+              +---------------------------------+
+|      PROXMOX VE HYPERVISORS      |              |   ORACLE CLOUD INFRASTRUCTURE   |
+|                                  |              |                                 |
+|  - Node 1 (192.168.100.150)      |              |   Bucket: homelab (Frankfurt)   |
+|  - Node 2 (192.168.100.180)      |              |   - /backups/vaultwarden/       |
+|  - Node 3 (192.168.100.190)      |              |   - /backups/argocd/            |
++----------------------------------+              +---------------------------------+
+```
+
 ```mermaid
 flowchart TD
     subgraph Control_Plane["Raspberry Pi 5 (192.168.100.25)"]
         ArgoCD["ArgoCD Hub Control Plane"]
-        Homepage["Homepage Dashboard<br/>(:30030)"]
-        UpSnap["UpSnap WoL & Power<br/>(:30090 / :8090)"]
-        Vaultwarden["Vaultwarden<br/>(HTTPS / :443)"]
-        CronBackup["Vaultwarden Backup CronJob<br/>(Daily @ 03:00 AM)"]
+        Homepage["Homepage Dashboard (:30030)"]
+        UpSnap["UpSnap WoL and Power (:30090)"]
+        Vaultwarden["Vaultwarden (HTTPS :443)"]
+        CronBackup["Backup CronJobs (Vaultwarden & ArgoCD)"]
     end
 
     subgraph Proxmox_Nodes["Proxmox VE Hypervisors"]
@@ -34,19 +69,19 @@ flowchart TD
     end
 
     subgraph Cloud_Offsite["Oracle Cloud Infrastructure (OCI)"]
-        S3["OCI S3 Bucket: homelab<br/>(eu-frankfurt-1)"]
+        S3["OCI S3 Bucket: homelab (eu-frankfurt-1)"]
     end
 
-    ArgoCD -->|Syncs Manifests| Homepage
-    ArgoCD -->|Syncs Manifests| UpSnap
-    ArgoCD -->|Syncs Manifests| Vaultwarden
-    ArgoCD -->|Syncs Manifests| CronBackup
+    ArgoCD -->|"GitOps Sync"| Homepage
+    ArgoCD -->|"GitOps Sync"| UpSnap
+    ArgoCD -->|"GitOps Sync"| Vaultwarden
+    ArgoCD -->|"GitOps Sync"| CronBackup
 
-    UpSnap -->|UDP 9 Magic Packet (Wake)| Proxmox_Nodes
-    UpSnap -->|SSH command=/sbin/poweroff (Shutdown)| Proxmox_Nodes
+    UpSnap -->|"UDP 9 Magic Packet [Wake]"| Proxmox_Nodes
+    UpSnap -->|"SSH poweroff [Shutdown]"| Proxmox_Nodes
 
-    CronBackup -->|Non-destructive SQLite Snapshot| Vaultwarden
-    CronBackup -->|SigV4 Encrypted S3 Upload| S3
+    CronBackup -->|"Safe SQLite Snapshot"| Vaultwarden
+    CronBackup -->|"SigV4 Encrypted S3 Upload"| S3
 ```
 
 ---
