@@ -12,10 +12,10 @@ data:
       Infrastructure:
         style: row
         columns: 4
-      Management & GitOps:
+      "Management & GitOps":
         style: row
         columns: 3
-      Media & Services:
+      "Media & Services":
         style: row
         columns: 4
 
@@ -38,7 +38,7 @@ data:
             href: http://192.168.100.25:30090
             description: "Wake-on-LAN Manager"
 
-    - Management & GitOps:
+    - "Management & GitOps":
         - ArgoCD Hub:
             icon: argocd.png
             href: http://192.168.100.25:8080
@@ -48,7 +48,7 @@ data:
             href: https://github.com/danxtrate
             description: "Infrastructure & GitOps Repos"
 
-    - Media & Services:
+    - "Media & Services":
         - Jellyfin:
             icon: jellyfin.png
             href: http://192.168.100.160:8096
@@ -69,9 +69,9 @@ data:
     - datetime:
         text_size: 2xl
         format:
-          timeStyle: short
           dateStyle: medium
-          hourCycle: h23
+          timeStyle: short
+        hour12: false
 
   bookmarks.yaml: |
     - Developer:
@@ -79,3 +79,8 @@ data:
             - href: https://kubernetes.io/docs/
         - ArgoCD Docs:
             - href: https://argo-cd.readthedocs.io/
+
+  custom.css: ""
+  custom.js: ""
+  docker.yaml: ""
+  kubernetes.yaml: ""
