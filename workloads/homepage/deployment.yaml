@@ -15,6 +15,18 @@ spec:
       labels:
         app: homepage
     spec:
+      initContainers:
+        - name: init-config
+          image: busybox:latest
+          command:
+            - "sh"
+            - "-c"
+            - "cp /config-source/* /app/config/ 2>/dev/null || true"
+          volumeMounts:
+            - name: config-source
+              mountPath: /config-source
+            - name: config
+              mountPath: /app/config
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:latest
@@ -35,11 +47,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
-            - name: logs
-              mountPath: /app/config/logs
       volumes:
-        - name: config
+        - name: config-source
           configMap:
             name: homepage-config
-        - name: logs
+        - name: config
           emptyDir: {}
