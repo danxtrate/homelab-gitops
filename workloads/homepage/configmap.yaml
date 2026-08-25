@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: homepage
+data:
+  settings.yaml: |
+    title: "Dan's Homelab"
+    theme: dark
+    color: slate
+    layout:
+      Infrastructure:
+        style: row
+        columns: 4
+      Management & GitOps:
+        style: row
+        columns: 3
+      Media & Services:
+        style: row
+        columns: 4
+
+  services.yaml: |
+    - Infrastructure:
+        - Proxmox M710q:
+            icon: proxmox.png
+            href: https://192.168.100.180:8006
+            description: "Workload Node (Lenovo ThinkCentre)"
+        - OPNsense:
+            icon: opnsense.png
+            href: https://192.168.100.1
+            description: "Core Firewall & Gateway"
+        - QNAP NAS:
+            icon: qnap.png
+            href: http://192.168.100.200:8080
+            description: "TS-228A Network Attached Storage"
+        - UpSnap:
+            icon: upsnap.png
+            href: http://192.168.100.25:30090
+            description: "Wake-on-LAN Manager"
+
+    - Management & GitOps:
+        - ArgoCD Hub:
+            icon: argocd.png
+            href: http://192.168.100.25:8080
+            description: "GitOps Control Plane (RPi 5)"
+        - GitHub Homelab:
+            icon: github.png
+            href: https://github.com/danxtrate
+            description: "Infrastructure & GitOps Repos"
+
+    - Media & Services:
+        - Jellyfin:
+            icon: jellyfin.png
+            href: http://192.168.100.160:8096
+            description: "Media Streaming"
+        - Immich:
+            icon: immich.png
+            href: http://192.168.100.160:2283
+            description: "Photo Management"
+        - Home Assistant:
+            icon: home-assistant.png
+            href: http://192.168.100.160:8123
+            description: "Smart Home & Reolink NVR"
+
+  widgets.yaml: |
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        text_size: 2xl
+        format:
+          timeStyle: short
+          dateStyle: medium
+          hourCycle: h23
+
+  bookmarks.yaml: |
+    - Developer:
+        - Kubernetes Docs:
+            - href: https://kubernetes.io/docs/
+        - ArgoCD Docs:
+            - href: https://argo-cd.readthedocs.io/

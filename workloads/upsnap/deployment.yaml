@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: upsnap
+  namespace: upsnap
+  labels:
+    app: upsnap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: upsnap
+  template:
+    metadata:
+      labels:
+        app: upsnap
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: upsnap
+          image: ghcr.io/seriousm4x/upsnap:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: UPSNAP_INTERVAL
+              value: "@every 1m"
+            - name: UPSNAP_SCAN_RANGE
+              value: "192.168.100.0/24"
+            - name: UPSNAP_LOG_LEVEL
+              value: "info"
+          ports:
+            - containerPort: 8090
+              name: http
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /app/pb_data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: upsnap-data
