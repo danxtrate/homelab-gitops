@@ -44,6 +44,10 @@ data:
             icon: argocd.png
             href: http://192.168.100.25:8080
             description: "RPi 5 Control Plane"
+        - Vaultwarden:
+            icon: vaultwarden.png
+            href: http://192.168.100.25:30088
+            description: "Passwords & Secrets"
         - GitHub Homelab:
             icon: github.png
             href: https://github.com/danxtrate
